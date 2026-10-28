@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 MEMOS = ["memo_1page.md", "memo_3page.md"]
-NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+NUMBER = re.compile(r"\d+(?:,\d{3})*(?:\.\d+)?")  # commas only as thousands separators: "105, 88" is two numbers
 
 
 def numbers(text):

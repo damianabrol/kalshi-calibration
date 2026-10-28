@@ -8,6 +8,7 @@ Writes  results/comparison.md   summary per group, longshots vs. favorites, note
         results/comparison.png  small multiples: one calibration panel per group
 """
 
+from math import ceil
 from pathlib import Path
 
 import matplotlib
@@ -24,6 +25,7 @@ from calibration import (INK, INK_SECONDARY, MIN_VOLUME, MUTED, N_BOOTSTRAP, SER
 GROUPS = [
     ("MLB games", "Sports", ["KXMLBGAME"]),
     ("NBA games", "Sports", ["KXNBAGAME"]),
+    ("NFL games", "Sports", ["KXNFLGAME"]),
     ("CPI", "Economics", ["KXCPI"]),
     ("NYC daily high temp", "Weather", ["KXHIGHNY"]),
     ("RCP approval", "Politics", ["KXAPRPOTUS"]),
@@ -60,13 +62,16 @@ def overround_row(name, tickers, games):
 
 
 def plot_small_multiples(results, path, strip=False):
-    """One calibration panel per group: a 2x3 grid, or (strip=True) a 1x6 row sized for a
+    """One calibration panel per group: a two-row grid, or (strip=True) a single row sized for a
     one-page memo, where the memo's table carries the sample sizes and Brier scores."""
     plt.rcParams["font.family"] = "sans-serif"
     plt.rcParams["font.sans-serif"] = ["Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans"]
-    nrows, ncols, figsize = (1, 6, (10, 2.2)) if strip else (2, 3, (11, 8.2))
+    n = len(results)
+    nrows, ncols, figsize = (1, n, (11, 2.1)) if strip else (2, ceil(n / 2), (14.5, 8.2))
     fig, axes = plt.subplots(nrows, ncols, figsize=figsize, facecolor=SURFACE, squeeze=False,
                              gridspec_kw={"hspace": 0.42, "wspace": 0.25 if strip else 0.18})
+    for ax in axes.flat[n:]:  # an odd number of groups leaves an empty slot in the grid
+        ax.set_visible(False)
     for ax, (name, category, games, table) in zip(axes.flat, results):
         style_axes(ax)
         ax.set_aspect("equal")  # square panels so the 45° line is a true 45°
@@ -90,9 +95,10 @@ def plot_small_multiples(results, path, strip=False):
             ax.text(0, 1.03, f"{describe(games)} · Brier {brier_score(games):.3f}",
                     transform=ax.transAxes, color=INK_SECONDARY, fontsize=8)
     label_size = 8 if strip else 9
-    for ax in axes[-1]:
-        ax.set_xlabel("Price 24h before close (¢)" if not strip else "Price (¢)",
-                      color=INK_SECONDARY, fontsize=label_size)
+    for i, ax in enumerate(axes.flat[:n]):
+        if i + ncols >= n:  # no panel below this one, so it carries the x-axis label
+            ax.set_xlabel("Price 24h before close (¢)" if not strip else "Price (¢)",
+                          color=INK_SECONDARY, fontsize=label_size)
     for ax in axes[:, 0]:
         ax.set_ylabel("Resolved YES (%)", color=INK_SECONDARY, fontsize=label_size)
 

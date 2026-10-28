@@ -14,3 +14,15 @@ data/*.csv
 
 # Temporary file written during PDF export
 memo_*.html
+
+# Other caches
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Secrets (this project uses only Kalshi's public API and needs none; this is a safeguard)
+.env
+.env.*
+*.pem
+*.key
+secrets.*
+credentials.*

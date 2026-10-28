@@ -6,6 +6,22 @@ price ranges (e.g., are longshots overpriced)?
 
 All data comes from Kalshi's public market-data API (no login or API key needed).
 
+## Read the memo
+
+- **[1-page memo (PDF)](memo_1page.pdf)**: the bottom line, one chart, the category table
+- **[3-page memo (PDF)](memo_3page.pdf)**: the same findings, plus data selection, full method,
+  longshots vs. heavy favorites, the sports overround, robustness checks and limitations
+
+Markdown sources: [`memo_1page.md`](memo_1page.md), [`memo_3page.md`](memo_3page.md). Every number
+in them comes from the generated files in [`results/`](results/) (checked by `check_memo.py`).
+
+**Bottom line:** across 12,732 settled markets in 6,485 events (sports, economics, weather,
+politics, crypto), the average price 24 hours before close falls inside the 95% interval of the
+share that resolved YES in 44 of 46 ten-cent price bins. Full table:
+[`results/comparison.md`](results/comparison.md).
+
+![Calibration by category](results/comparison.png)
+
 ## Status
 
 - [x] Step 1: Project setup + API exploration (`explore_api.py`, sample responses in `samples/`)
@@ -18,8 +34,15 @@ All data comes from Kalshi's public market-data API (no login or API key needed)
       (`results/comparison.md`, `.csv`, `.png`; per-series `results/<series>_calibration.md`)
 - [x] Step 5: Memos for a Kalshi reader: `memo_1page.md` / `.pdf` and `memo_3page.md` / `.pdf`
       (every number checked against `results/` by `check_memo.py`)
+- [x] Follow-up: NFL games (`KXNFLGAME`) run through the same pipeline and added to the comparison
+      and both memos, with preseason games excluded (`results/KXNFLGAME_calibration.md`,
+      `results/KXNFLGAME_data_quality.md`)
 
-## Setup
+## How to run
+
+Built with Python 3.11; the PDF export also needs Google Chrome. The first full download makes
+about 26,000 API requests at Kalshi's rate limit, roughly two hours; re-runs read from the local
+cache in `data/raw/` instead of calling the API.
 
 ```bash
 python3 -m venv .venv
@@ -31,7 +54,7 @@ python3 -m venv .venv
 .venv/bin/python calibration.py KXMLBGAME    # step 3: calibration table, Brier, chart -> results/
 
 # step 4: same pipeline for every series, then the cross-category comparison
-for s in KXMLBGAME KXNBAGAME KXCPI KXHIGHNY KXAPRPOTUS KXBTCMAXMON KXBTCMINMON; do
+for s in KXMLBGAME KXNBAGAME KXNFLGAME KXCPI KXHIGHNY KXAPRPOTUS KXBTCMAXMON KXBTCMINMON; do
   .venv/bin/python pull_data.py $s && .venv/bin/python build_dataset.py $s && .venv/bin/python data_quality.py $s
 done
 .venv/bin/python compare.py                  # -> results/comparison.md, .csv, .png
@@ -106,6 +129,16 @@ negative gap in every well-populated bin (30–69¢), which looked like across-t
 "overpricing" but was really noise from the coin flip. The favorite rule uses every game once with no coin flip.
 The underdog half of the chart (below 50¢) is the mirror image of the favorite half, so it adds
 no information.
+
+**NFL preseason games are excluded (decided when NFL was added).** Starters often sit in the
+preseason, so it's a different contest from the regular season. Kalshi doesn't flag preseason
+markets (no API field or title says so), but the schedule does: the preseason is played in late
+July and August, and the regular season starts in September. `build_dataset.py` marks NFL games
+scheduled in July or August (the date is in the event ticker: `KXNFLGAME-25AUG07INDBAL` =
+Aug 7, 2025) with the drop reason "preseason" (186 markets).
+*Inconsistency to know about:* the NBA sample still includes its early-October preseason games,
+because they weren't separated out when NBA was added. Dropping them would change the published
+NBA numbers, so it's listed as a next step instead.
 *Caveat:* picking the higher of two prices that each carry a little noise (e.g., a slightly stale
 last trade) tilts the favorite's price slightly upward, which can make favorites look a bit
 overpriced. With tight spreads this effect should be small, but it isn't zero, so a small
@@ -168,7 +201,8 @@ slow-trading series most markets haven't traded within 3 hours of the snapshot, 
 370 of 423 CPI markets and 390 of 1,019 approval markets.
 
 **Overround (two-team sports, step 4).** Either side of a game can be bought, and at T-24h the
-two sides' prices add up to slightly more than $1 on average (MLB 100.74¢, NBA 101.78¢). Part of
+two sides' prices add up to slightly more than $1 on average (MLB 100.74¢, NBA 101.78¢, NFL
+101.04¢). Part of
 any gap between a favorite's price and its win rate is that extra, not a mispricing of the
 outcome. `compare.py` reports the favorite's price divided by the sum of both sides ("net of
 overround") next to the raw price.
@@ -184,6 +218,7 @@ markets are open) for recurring series in each category:
 |---|---|---|---|
 | Sports | MLB games | `KXMLBGAME` | Steps 2–3 |
 | Sports | NBA games | `KXNBAGAME` | Liquid (median ~2.6M contracts/market); lopsided favorites, which MLB lacks |
+| Sports | NFL games | `KXNFLGAME` | Added after step 5; the most liquid sport screened (median ~5.3M contracts/market) |
 | Economics | CPI | `KXCPI` | Flagship economic release; monthly since 2021 |
 | Weather | NYC daily high temp | `KXHIGHNY` | Largest sample (~1,900 days since 2021) |
 | Politics | RCP approval | `KXAPRPOTUS` | Weekly since 2021; most events of the politics candidates |
@@ -236,3 +271,18 @@ high/low series have only ~179 markets in 20 events, so crypto intervals will be
 - Of 4,679 games, 4,675 have exactly one market that settled YES; 4 have both sides settled NO.
 - At T-24h, MLB prices sit almost entirely between 30¢ and 70¢, so MLB alone can't test
   how longshots (< 20¢) or heavy favorites (> 80¢) are priced.
+
+## Data notes: NFL (`KXNFLGAME`)
+
+- **Kalshi's NFL game markets start with the 2025 preseason** (Hall of Fame game, Jul 31, 2025).
+  No older NFL game series exists; the only legacy (non-`KX`) NFL series is TV ratings
+  (`NFLVIEW`). Pulled Oct 27, 2026: 489 games, i.e., the 2025 preseason, all 272 regular-season
+  games, the playoffs through the conference championships, the 2026 preseason, and the 2026
+  season through Oct 26.
+- **The Super Bowl isn't in this series**, so the 2025 season stops at the conference championships.
+- **Ties settle as "scalar" at 50¢ for both sides** (7 games: 5 preseason, plus Green Bay at
+  Dallas on Sep 28, 2025 and NY Giants vs Washington on Oct 11, 2026). The YES/NO-only rule
+  drops them.
+- After dropping preseason (186 markets) and 2 games with no trade by T-24h, 387 games are analyzed.
+  Markets open about 12 days before close (median ~290–300h), so every game has a T-24h price
+  window, and the prices are fresh: 100% within 1 hour of the last trade, 99.7% of spreads ≤ 2¢.

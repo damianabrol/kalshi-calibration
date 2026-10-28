@@ -15,7 +15,7 @@ Snapshot rule (agreed in step 1): the price is the last traded price at or befor
     reach $X this month?" closes when BTC touches $X, always as YES), so actual close times
     reveal outcomes. For these we use Kalshi's scheduled end for the event instead.
 A market that already closed before the snapshot is dropped; that is known at snapshot
-time, so it doesn't leak the future.
+time, so it doesn't leak the future. NFL preseason games are dropped too (PRESEASON_MONTHS).
 
 We only look at hourly candles that END at or before the snapshot time, so no trade made
 after the snapshot can leak in. Unusable markets stay in the file with a drop_reason, so
@@ -35,7 +35,14 @@ SEED = 42
 # Series whose events are two mirror markets, one per team. For these we analyze each game's
 # favorite. For every other series (ranges, thresholds) every priced market is analyzed, and
 # calibration.py accounts for markets in the same event being linked.
-TWO_SIDED_SERIES = {"KXMLBGAME", "KXNBAGAME"}
+TWO_SIDED_SERIES = {"KXMLBGAME", "KXNBAGAME", "KXNFLGAME"}
+
+# NFL preseason games are excluded (decided when NFL was added): starters often sit, so they are a
+# different contest from the regular season. Kalshi doesn't flag them, but the schedule does: the
+# preseason is played in late July and August, and the regular season starts in September. The
+# event ticker carries the scheduled date (KXNFLGAME-25AUG07INDBAL = Aug 7, 2025).
+# (NBA preseason games, in early October, are still included; see README.)
+PRESEASON_MONTHS = {"KXNFLGAME": ("JUL", "AUG")}
 
 # Series whose markets close as soon as they resolve, so the snapshot is anchored to the
 # event's scheduled end. (In Jan 2026 BTC fell through every level of KXBTCMINMON, so all
@@ -126,6 +133,9 @@ def main():
     rows = [snapshot_row(m, candles_by_ticker.get(m.ticker, no_candles), event_close)
             for m, event_close in zip(eligible.itertuples(), event_close_ts)]
     snapshots = pd.DataFrame(rows)
+    if series in PRESEASON_MONTHS:  # excluded by design, so this reason replaces any other
+        month = snapshots["event_ticker"].str.split("-").str[1].str[2:5]  # "25AUG07INDBAL" -> "AUG"
+        snapshots.loc[month.isin(PRESEASON_MONTHS[series]), "drop_reason"] = "preseason"
     if series in TWO_SIDED_SERIES:
         snapshots["analyzed"] = favorites(snapshots)
     else:

@@ -28,6 +28,7 @@ SEED = 42
 SERIES_NAMES = {
     "KXMLBGAME": "MLB games",
     "KXNBAGAME": "NBA games",
+    "KXNFLGAME": "NFL games",
     "KXCPI": "CPI",
     "KXHIGHNY": "NYC daily high temperature",
     "KXAPRPOTUS": "RCP presidential approval",
