@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Raw API cache (re-creatable by re-running the pull; can get large)
+data/raw/
+
+# Pipeline CSVs (~83 MB; re-created by pull_data.py and build_dataset.py, see README)
+data/*.csv
+
+# Temporary file written during PDF export
+memo_*.html
